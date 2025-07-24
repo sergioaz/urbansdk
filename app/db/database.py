@@ -43,6 +43,7 @@ duval_table = sqlalchemy.Table(
 
 
 engine = sqlalchemy.create_engine(config.DATABASE_URL)
+#engine = sqlalchemy.create_async_engine(config.DATABASE_URL)
 
 
 metadata.create_all(engine)

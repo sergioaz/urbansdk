@@ -6,16 +6,37 @@ from app.db.database import database
 
 class TestAggregateService:
     """Test cases for aggregate service functions using live PostgreSQL connection"""
+    
+    #@pytest.fixture(autouse=True)
+    async def setup_and_teardown(self):
+        """Setup and teardown fixture for each test method
+        Does not really work for async tests, but kept for structure.
+        """
+        # Setup: Connect to database
+        if not database.is_connected:
+            await database.connect()
+        
+        yield  # This is where the test runs
+        
+        # Teardown: Keep connection for other tests (optional cleanup)
+        # We'll keep the connection alive to avoid reconnection overhead
 
     @pytest.mark.asyncio
     async def test_get_average_speed_valid_data(self):
         """Test getting average speed with valid day and period that should have data"""
         # Use day=2 (Tuesday) and period=4 which should have data based on your sample
+
+        # connect to the database
+        if not database.is_connected:
+            await database.connect()
+
         day = 2
         period = 4
-        
+
+
         result = await get_average_speed_by_day_period(day, period)
-        
+        await database.disconnect()  # Disconnect after test
+
         # Assertions
         assert isinstance(result, dict)
         assert "day_of_week" in result
@@ -31,10 +52,17 @@ class TestAggregateService:
     async def test_get_average_speed_no_data(self):
         """Test getting average speed with day and period that have no data"""
         # Use day=7 (Sunday) and period=999 which should have no data
+
+        # connect to the database
+        if not database.is_connected:
+            await database.connect()
+
         day = 7
         period = 999
-        
+
         result = await get_average_speed_by_day_period(day, period)
+
+        await database.disconnect()  # Disconnect after test
         
         # Assertions for no data case
         assert isinstance(result, dict)
@@ -45,11 +73,18 @@ class TestAggregateService:
     @pytest.mark.asyncio
     async def test_get_average_speed_monday_period_1(self):
         """Test getting average speed for Monday period 1"""
+
+        # connect to the database
+        if not database.is_connected:
+            await database.connect()
+
         day = 1  # Monday
         period = 1
-        
+
         result = await get_average_speed_by_day_period(day, period)
-        
+
+        await database.disconnect()  # Disconnect after test
+
         assert result["day_of_week"] == 1
         assert result["period"] == 1
         assert isinstance(result["average_speed"], float)
@@ -57,6 +92,10 @@ class TestAggregateService:
     @pytest.mark.asyncio
     async def test_get_average_speed_multiple_periods(self):
         """Test getting average speed for multiple periods to ensure data consistency"""
+        # connect to the database
+        if not database.is_connected:
+            await database.connect()
+
         day = 2  # Tuesday
         periods = [1, 2, 3, 4, 5]
         
@@ -74,9 +113,16 @@ class TestAggregateService:
         # Check that we got results for all periods
         assert len(results) == len(periods)
 
+        await database.disconnect()  # Disconnect after test
+
+
     @pytest.mark.asyncio
     async def test_get_average_speed_all_weekdays(self):
         """Test getting average speed for all weekdays with a common period"""
+        # connect to the database
+        if not database.is_connected:
+            await database.connect()
+
         period = 4  # Use period 4 which should have data
         weekdays = [1, 2, 3, 4, 5]  # Monday through Friday
         
@@ -93,9 +139,16 @@ class TestAggregateService:
         # Verify we got results for all weekdays
         assert len(results) == len(weekdays)
 
+        await database.disconnect()  # Disconnect after test
+
+
     @pytest.mark.asyncio
     async def test_average_speed_precision(self):
         """Test that average speed is rounded to 2 decimal places"""
+        # connect to the database
+        if not database.is_connected:
+            await database.connect()
+
         day = 2
         period = 4
         
@@ -107,9 +160,16 @@ class TestAggregateService:
             decimal_places = len(speed_str.split('.')[1])
             assert decimal_places <= 2, f"Average speed should be rounded to 2 decimal places, got {decimal_places}"
 
+        await database.disconnect()  # Disconnect after test
+
+
     @pytest.mark.asyncio
     async def test_error_handling_invalid_database(self):
         """Test error handling when database query fails"""
+        # connect to the database
+        if not database.is_connected:
+            await database.connect()
+
         # Temporarily disconnect database to simulate error
         await database.disconnect()
         
@@ -118,12 +178,16 @@ class TestAggregateService:
         
         assert "Failed to calculate average speed aggregation" in str(exc_info.value)
         
-        # Reconnect for other tests
-        await database.connect()
+        await database.disconnect()  # Disconnect after test
+
 
     @pytest.mark.asyncio
     async def test_edge_case_boundary_values(self):
         """Test boundary values for day and period"""
+        # connect to the database
+        if not database.is_connected:
+            await database.connect()
+
         # Test minimum values
         result_min = await get_average_speed_by_day_period(1, 1)
         assert result_min["day_of_week"] == 1
@@ -134,9 +198,16 @@ class TestAggregateService:
         assert result_max_day["day_of_week"] == 7
         assert result_max_day["period"] == 1
 
+        await database.disconnect()  # Disconnect after test
+
+
     @pytest.mark.asyncio 
     async def test_data_consistency(self):
         """Test that repeated calls return consistent results"""
+        # connect to the database
+        if not database.is_connected:
+            await database.connect()
+
         day = 2
         period = 4
         
@@ -147,3 +218,6 @@ class TestAggregateService:
         
         # Results should be identical
         assert result1 == result2 == result3
+
+        await database.disconnect()  # Disconnect after test
+
