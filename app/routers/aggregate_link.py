@@ -1,29 +1,29 @@
-from fastapi import APIRouter, HTTPException, Query
+import logging
+from fastapi import APIRouter, HTTPException, Depends
 from app.services.aggregate import get_average_speed_by_link_day_period
-from app.models.aggregate_link import AggregateLinkResponse
-from app.helpers.periods import PERIOD_MAPPING, PeriodName, get_valid_periods, DAY_MAPPING, DayName
+from app.models.aggregate_link import AggregateLinkResponse, AggregateLinkRequest
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 @router.get("/aggregates/{link_id}", response_model=AggregateLinkResponse)
 async def get_aggregate_link_data(
     link_id: int,
-    day: DayName = Query(..., description="Day of week name"),
-    period: PeriodName = Query(..., description="Time period name")
+    request: AggregateLinkRequest = Depends()
 ):
     """
     Get speed and metadata for a single road segment.
 
     Args:
         link_id: Unique identifier for the road segment
-        day: Day of week name (Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday)
-        period: Time period name (Overnight, Early Morning, AM Peak, Midday, Early Afternoon, PM Peak, Evening)
+        request: AggregateLinkRequest containing day and period from query parameters
 
     Returns:
         Aggregated speed and metadata for the specified link
         
     Example API Calls:
-        GET /aggregates/1148855686?day=Tuesday&period=AM Peak
+        GET /aggregates/1148855686?day=Tuesday&period=AM%20Peak
         GET /aggregates/1240632857?day=Monday&period=Evening
         GET /aggregates/1240632858?day=Friday&period=Overnight
         
@@ -46,11 +46,12 @@ async def get_aggregate_link_data(
         Evening = 7
     """
     try:
-        # Translate day name to number
-        day_number = DAY_MAPPING[day]
+        # Get numeric values from the request
+        day_number = request.get_day_number()
+        period_number = request.get_period_number()
         
-        # Translate period name to number
-        period_number = PERIOD_MAPPING[period]
+        logger.info(f"Aggregate link request: link_id={link_id}, day={request.day} ({day_number}), "
+                   f"period={request.period} ({period_number})")
         
         # Call the service function
         result = await get_average_speed_by_link_day_period(link_id, day_number, period_number)
@@ -59,25 +60,20 @@ async def get_aggregate_link_data(
         if "error" in result:
             raise HTTPException(
                 status_code=404,
-                detail=f"No data found for link {link_id}, day '{day}' ({day_number}), and period '{period}' ({period_number})"
+                detail=f"No data found for link {link_id}, day '{request.day}' ({day_number}), and period '{request.period}' ({period_number})"
             )
+
+        logger.info(f"Found aggregate link data: link_id={link_id}, average_speed={result['average_speed']}")
 
         return AggregateLinkResponse(**result)
 
     except HTTPException:
         # Re-raise HTTP exceptions
         raise
-    except KeyError as e:
-        # Handle both day and period key errors
-        if str(e).strip("'") in DAY_MAPPING:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid day name '{day}'. Valid options: {list(DAY_MAPPING.keys())}"
-            )
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid period name '{period}'. Valid options: {get_valid_periods()}"
-            )
+    except ValueError as e:
+        # This should be caught by pydantic validation, but just in case
+        logger.error(f"Validation error in aggregate link request: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
     except Exception as e:
+        logger.error(f"Error in aggregate link request: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

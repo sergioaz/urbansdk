@@ -6,6 +6,7 @@ from fastapi.exception_handlers import http_exception_handler
 
 from app.routers.aggregate import router as aggregate_router
 from app.routers.aggregate_link import router as aggregate_link_router
+from app.routers.spatial_filter import router as spatial_filter_router
 from app.db.database import database
 from app.core.logging_conf import configure_logging
 
@@ -23,6 +24,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(aggregate_router, tags=["get_aggregated_speed"])
 app.include_router(aggregate_link_router, tags=["get_aggregate_link_data"])
+app.include_router(spatial_filter_router, tags=["spatial_filter"])
 
 
 @app.exception_handler(HTTPException)

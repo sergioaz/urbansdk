@@ -1,5 +1,31 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
+from fastapi import Query
+from app.helpers.periods import DayName, PeriodName, get_day_number, get_period_number
+
+
+class AggregateLinkRequest(BaseModel):
+    """Request model for link aggregate speed data"""
+    
+    day: DayName = Field(Query(..., description="Day of the week name"))
+    period: PeriodName = Field(Query(..., description="Time period name"))
+    
+    def get_day_number(self) -> int:
+        """Convert day name to day number"""
+        return get_day_number(self.day)
+    
+    def get_period_number(self) -> int:
+        """Convert period name to period number"""
+        return get_period_number(self.period)
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "day": "Tuesday",
+                "period": "AM Peak"
+            }
+        }
+    )
 
 
 class AggregateLinkResponse(BaseModel):
@@ -19,10 +45,10 @@ class AggregateLinkResponse(BaseModel):
     volume_bin_id: Optional[int] = Field(None, description="Volume bin ID")
     volume_year: Optional[int] = Field(None, description="Volume year")
     volumes_bin_description: Optional[str] = Field(None, description="Volume bin description")
-    geo_json: Optional[str] = Field(None, description="GeoJSON representation of the link")
+    geometry: Optional[str] = Field(None, description="Geometry representation of the link")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "link_id": 1148855686,
                 "day_of_week": 2,
@@ -39,6 +65,7 @@ class AggregateLinkResponse(BaseModel):
                 "volume_bin_id": 1,
                 "volume_year": 2022,
                 "volumes_bin_description": "0-1999",
-                "geo_json": "{\"type\":\"MultiLineString\",\"coordinates\":[[[-81.51023,30.16599],[-81.51038,30.16637]]]}"
+                "geometry": "LINESTRING(-81.51023 30.16599, -81.51038 30.16637)",
             }
         }
+    )

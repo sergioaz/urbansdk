@@ -1,7 +1,7 @@
 import databases
 import sqlalchemy
+from geoalchemy2 import Geometry
 from app.core.config import config
-#from routers.post import comment_table
 
 metadata = sqlalchemy.MetaData()
 
@@ -19,7 +19,7 @@ link_info_table = sqlalchemy.Table(
     sqlalchemy.Column("volume_bin_id", sqlalchemy.Integer),
     sqlalchemy.Column("volume_year", sqlalchemy.Integer),
     sqlalchemy.Column("volumes_bin_description", sqlalchemy.Text),
-    sqlalchemy.Column("geo_json", sqlalchemy.Text),
+    sqlalchemy.Column("geometry", Geometry('LINESTRING', srid=4326)),
 )
 
 # Duval table definition

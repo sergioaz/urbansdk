@@ -28,22 +28,22 @@ Use the following periods for time-based aggregation:
 
 ✅ Required API Endpoints
 You must implement the following endpoints in your FastAPI service:
-1⃣ /aggregates/
+- 1⃣ /aggregates/
 Method: GET
 Query Params: day, period
 Returns:
 Aggregated average speed per link for the given day and time period.
-2⃣ /aggregates/{link_id}
+- 2⃣ /aggregates/{link_id}
 Method: GET
 Query Params: day, period
 Returns:
 Speed and metadata for a single road segment.
-3⃣ /patterns/slow_links/
+- 3⃣ /patterns/slow_links/
 Method: GET
 Query Params: period, threshold, min_days
 Returns:
 Links with average speeds below a threshold for at least min_days in a week.
-4⃣ /aggregates/spatial_filter/
+- 4⃣ /aggregates/spatial_filter/
 Method: POST
 Body Example:
 json

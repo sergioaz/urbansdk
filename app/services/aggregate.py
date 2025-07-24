@@ -1,5 +1,5 @@
 from typing import List, Dict
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from app.db.database import database, duval_table, link_info_table
 
 
@@ -95,7 +95,7 @@ async def get_average_speed_by_link_day_period(link_id: int, day: int, period: i
                 link_info_table.c.volume_bin_id,
                 link_info_table.c.volume_year,
                 link_info_table.c.volumes_bin_description,
-                link_info_table.c.geo_json
+                link_info_table.c.geometry
             )
             .select_from(
                 duval_table.join(
@@ -121,7 +121,7 @@ async def get_average_speed_by_link_day_period(link_id: int, day: int, period: i
                 link_info_table.c.volume_bin_id,
                 link_info_table.c.volume_year,
                 link_info_table.c.volumes_bin_description,
-                link_info_table.c.geo_json
+                link_info_table.c.geometry
             )
         )
 
@@ -146,7 +146,7 @@ async def get_average_speed_by_link_day_period(link_id: int, day: int, period: i
                 "volume_bin_id": result["volume_bin_id"],
                 "volume_year": result["volume_year"],
                 "volumes_bin_description": result["volumes_bin_description"],
-                "geo_json": result["geo_json"]
+                "geometry": result["geometry"]
             }
         else:
             return {
@@ -159,3 +159,58 @@ async def get_average_speed_by_link_day_period(link_id: int, day: int, period: i
 
     except Exception as e:
         raise Exception(f"Failed to calculate average speed aggregation for link {link_id}: {str(e)}")
+
+
+async def get_link_in_box_day_period(west: float, south: float, east: float, north: float, day: int, period: int) -> List[int]:
+    """
+    Retrieves link IDs within a geographic bounding box for a given day and time period.
+
+    Args:
+        west (float): Western longitude of the bounding box
+        south (float): Southern latitude of the bounding box
+        east (float): Eastern longitude of the bounding box
+        north (float): Northern latitude of the bounding box
+        day (int): Day of week (1-7, where 1=Monday)
+        period (int): Time period identifier
+
+    Returns:
+        List[int]: List of link IDs that are inside the bounding box on the specified day and period
+
+    Raises:
+        Exception: If database query fails or invalid arguments are provided
+    """
+    # Validate input arguments
+    if day < 1 or day > 7:
+        raise ValueError("Day must be between 1 and 7 (1=Monday, 7=Sunday)")
+    
+    try:
+        # Create a query to retrieve distinct link IDs in the bounding box, day, and time period
+        query = (
+            select(duval_table.c.link_id)
+            .select_from(
+                duval_table.join(
+                    link_info_table,
+                    duval_table.c.link_id == link_info_table.c.link_id
+                )
+            )
+            .where(
+                text(
+                    f"ST_Intersects("
+                    f"geometry, "
+                    f"ST_MakeEnvelope({west}, {south}, {east}, {north}, 4326)"
+                    f")"
+                ) &
+                (duval_table.c.day_of_week == day) &
+                (duval_table.c.period == period)
+            )
+            .distinct()
+        )
+
+        # Execute the query
+        result_set = await database.fetch_all(query)
+
+        # Extract and return link IDs from the result
+        return [row["link_id"] for row in result_set]
+
+    except Exception as e:
+        raise Exception(f"Failed to retrieve links in box by day and period: {str(e)}")

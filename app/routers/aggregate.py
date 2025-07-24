@@ -1,36 +1,31 @@
 import logging
-from fastapi import APIRouter, Query, HTTPException
-from app.models.aggregate import AggregateResponse
+from fastapi import APIRouter, HTTPException, Depends
+from app.models.aggregate import AggregateRequest, AggregateResponse
 from app.services.aggregate import get_average_speed_by_day_period
-from app.helpers.periods import PERIOD_MAPPING, PeriodName, get_valid_periods, DAY_MAPPING, DayName
 
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
 
 @router.get("/aggregates/", response_model=AggregateResponse)
-async def get_aggregated_speed(
-    day: DayName = Query(..., description="Day of week name"),
-    period: PeriodName = Query(..., description="Time period name")
-):
+async def get_aggregated_speed(request: AggregateRequest = Depends()):
     """
     Get aggregated average speed for the given day and time period.
     
     Args:
-        day: Day of week name (Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday)
-        period: Time period name (Overnight, Early Morning, AM Peak, Midday, Early Afternoon, PM Peak, Evening)
+        request: AggregateRequest containing day and period from query parameters
         
     Returns:
         AggregateResponse: Aggregated data with average speed
         
     Example API Calls:
-        GET /aggregates/?day=Tuesday&period=AM Peak
+        GET /aggregates/?day=Tuesday&period=AM%20Peak
         GET /aggregates/?day=Monday&period=Evening
         GET /aggregates/?day=Friday&period=Overnight
         
     Example Response:
         {
-            "day_of_week": 2,
+            "day_of_week": 3,
             "period": 3,
             "average_speed": 42.75
         }
@@ -54,11 +49,12 @@ async def get_aggregated_speed(
         Evening = 7
     """
     try:
-        # Translate day name to number
-        day_number = DAY_MAPPING[day]
+        # Get numeric values from the request
+        day_number = request.get_day_number()
+        period_number = request.get_period_number()
         
-        # Translate period name to number
-        period_number = PERIOD_MAPPING[period]
+        logger.info(f"Aggregate request: day={request.day} ({day_number}), "
+                   f"period={request.period} ({period_number})")
         
         # Call the service function
         result = await get_average_speed_by_day_period(day_number, period_number)
@@ -67,25 +63,20 @@ async def get_aggregated_speed(
         if result["average_speed"] == 0.0:
             raise HTTPException(
                 status_code=404, 
-                detail=f"No data found for day '{day}' ({day_number}) and period '{period}' ({period_number})"
+                detail=f"No data found for day '{request.day}' ({day_number}) and period '{request.period}' ({period_number})"
             )
+        
+        logger.info(f"Found aggregate data: average_speed={result['average_speed']}")
         
         return AggregateResponse(**result)
         
     except HTTPException:
         # Re-raise HTTP exceptions
         raise
-    except KeyError as e:
-        # Handle both day and period key errors
-        if str(e).strip("'") in DAY_MAPPING:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid day name '{day}'. Valid options: {list(DAY_MAPPING.keys())}"
-            )
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid period name '{period}'. Valid options: {list(PERIOD_MAPPING.keys())}"
-            )
+    except ValueError as e:
+        # This should be caught by pydantic validation, but just in case
+        logger.error(f"Validation error in aggregate request: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
     except Exception as e:
+        logger.error(f"Error in aggregate request: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

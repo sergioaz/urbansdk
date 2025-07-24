@@ -1,6 +1,6 @@
 import pytest
 from decimal import Decimal
-from app.services.aggregate import get_average_speed_by_day_period, get_average_speed_by_link_day_period
+from app.services.aggregate import get_average_speed_by_day_period, get_average_speed_by_link_day_period, get_link_in_box_day_period
 from app.db.database import database
 
 
@@ -238,7 +238,7 @@ class Test_get_average_speed_by_link_day_period:
         assert "usdk_speed_category" in result
         assert "funclass_id" in result
         assert "volume_value" in result
-        assert "geo_json" in result
+        assert "geometry" in result
     
     @pytest.mark.asyncio
     async def test_get_average_speed_by_link_no_data(self):
@@ -283,7 +283,7 @@ class Test_get_average_speed_by_link_day_period:
             "link_id", "day_of_week", "period", "average_speed", "average_freeflow",
             "record_count", "length", "road_name", "usdk_speed_category",
             "funclass_id", "speedcat", "volume_value", "volume_bin_id",
-            "volume_year", "volumes_bin_description", "geo_json"
+            "volume_year", "volumes_bin_description", "geometry"
         ]
         
         for field in expected_fields:
@@ -403,6 +403,276 @@ class Test_get_average_speed_by_link_day_period:
         assert "Failed to calculate average speed aggregation for link" in str(exc_info.value)
 
 
+class Test_get_link_in_box_day_period:
+    """Test cases for get_link_in_box_day_period function using live PostgreSQL connection"""
+    
+    @pytest.mark.asyncio
+    async def test_get_link_in_box_valid_bbox(self):
+        """Test getting link IDs within a valid geographic bounding box"""
+        # Connect to database
+        if not database.is_connected:
+            await database.connect()
+        
+        # Use bounding box around Jacksonville area (approximate)
+        west = -81.8
+        south = 30.1
+        east = -81.6
+        north = 30.3
+        day = 2  # Monday
+        period = 4
+        
+        result = await get_link_in_box_day_period(west, south, east, north, day, period)
+        await database.disconnect()
+        
+        # Assertions
+        assert isinstance(result, list)
+        # Should return a list of integers (link IDs)
+        for link_id in result:
+            assert isinstance(link_id, int)
+            assert link_id > 0
+    
+    @pytest.mark.asyncio
+    async def test_get_link_in_box_empty_result(self):
+        """Test getting link IDs with bounding box that has no data"""
+        # Connect to database
+        if not database.is_connected:
+            await database.connect()
+        
+        # Use bounding box in an area with no data (middle of ocean)
+        west = -90.0
+        south = 25.0
+        east = -89.0
+        north = 26.0
+        day = 2
+        period = 4
+        
+        result = await get_link_in_box_day_period(west, south, east, north, day, period)
+        await database.disconnect()
+        
+        # Should return empty list for area with no data
+        assert isinstance(result, list)
+        assert len(result) == 0
+    
+    @pytest.mark.asyncio
+    async def test_get_link_in_box_invalid_day(self):
+        """Test error handling with invalid day parameter"""
+        # Connect to database
+        if not database.is_connected:
+            await database.connect()
+        
+        west = -81.8
+        south = 30.1
+        east = -81.6
+        north = 30.3
+        period = 4
+        
+        # Test invalid day (day < 1)
+        with pytest.raises(ValueError) as exc_info:
+            await get_link_in_box_day_period(west, south, east, north, 0, period)
+        assert "Day must be between 1 and 7" in str(exc_info.value)
+        
+        # Test invalid day (day > 7)
+        with pytest.raises(ValueError) as exc_info:
+            await get_link_in_box_day_period(west, south, east, north, 8, period)
+        assert "Day must be between 1 and 7" in str(exc_info.value)
+        
+        await database.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_get_link_in_box_different_periods(self):
+        """Test getting link IDs for different time periods"""
+        # Connect to database
+        if not database.is_connected:
+            await database.connect()
+        
+        # Use Jacksonville area bounding box
+        west = -81.8
+        south = 30.1
+        east = -81.6
+        north = 30.3
+        day = 2  # Tuesday
+        periods = [1, 2, 3, 4, 5]
+        
+        results = []
+        for period in periods:
+            result = await get_link_in_box_day_period(west, south, east, north, day, period)
+            results.append(result)
+            
+            # Basic assertions for each result
+            assert isinstance(result, list)
+            for link_id in result:
+                assert isinstance(link_id, int)
+                assert link_id > 0
+        
+        # Check that we got results for all periods
+        assert len(results) == len(periods)
+        
+        await database.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_get_link_in_box_all_weekdays(self):
+        """Test getting link IDs for all weekdays"""
+        # Connect to database
+        if not database.is_connected:
+            await database.connect()
+        
+        # Use Jacksonville area bounding box
+        west = -81.8
+        south = 30.1
+        east = -81.6
+        north = 30.3
+        period = 4
+        weekdays = [1, 2, 3, 4, 5, 6, 7]  # Monday through Sunday
+        
+        results = []
+        for day in weekdays:
+            result = await get_link_in_box_day_period(west, south, east, north, day, period)
+            results.append(result)
+            
+            # Basic assertions
+            assert isinstance(result, list)
+            for link_id in result:
+                assert isinstance(link_id, int)
+                assert link_id > 0
+        
+        # Verify we got results for all weekdays
+        assert len(results) == len(weekdays)
+        
+        await database.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_get_link_in_box_small_vs_large_bbox(self):
+        """Test that larger bounding box returns more or equal links than smaller one"""
+        # Connect to database
+        if not database.is_connected:
+            await database.connect()
+        
+        day = 2
+        period = 4
+        
+        # Small bounding box
+        small_result = await get_link_in_box_day_period(-81.75, 30.15, -81.65, 30.25, day, period)
+        
+        # Larger bounding box (encompasses the small one)
+        large_result = await get_link_in_box_day_period(-81.8, 30.1, -81.6, 30.3, day, period)
+        
+        # Larger bounding box should have more or equal number of links
+        assert len(large_result) >= len(small_result)
+        
+        # All links from small bbox should be in large bbox
+        for link_id in small_result:
+            assert link_id in large_result
+        
+        await database.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_get_link_in_box_boundary_values(self):
+        """Test boundary values for coordinates and parameters"""
+        # Connect to database
+        if not database.is_connected:
+            await database.connect()
+        
+        # Test with extreme coordinate values (should not cause errors)
+        west = -180.0
+        south = -90.0
+        east = 180.0
+        north = 90.0
+        
+        # Test minimum day and period values
+        result_min = await get_link_in_box_day_period(west, south, east, north, 1, 1)
+        assert isinstance(result_min, list)
+        
+        # Test maximum day value
+        result_max_day = await get_link_in_box_day_period(west, south, east, north, 7, 1)
+        assert isinstance(result_max_day, list)
+        
+        await database.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_get_link_in_box_data_consistency(self):
+        """Test that repeated calls with same parameters return identical results"""
+        # Connect to database
+        if not database.is_connected:
+            await database.connect()
+        
+        west = -81.8
+        south = 30.1
+        east = -81.6
+        north = 30.3
+        day = 2
+        period = 4
+        
+        # Make multiple calls
+        result1 = await get_link_in_box_day_period(west, south, east, north, day, period)
+        result2 = await get_link_in_box_day_period(west, south, east, north, day, period)
+        result3 = await get_link_in_box_day_period(west, south, east, north, day, period)
+        
+        # Results should be identical
+        assert result1 == result2 == result3
+        
+        await database.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_get_link_in_box_distinct_results(self):
+        """Test that results contain distinct link IDs (no duplicates)"""
+        # Connect to database
+        if not database.is_connected:
+            await database.connect()
+        
+        west = -81.8
+        south = 30.1
+        east = -81.6
+        north = 30.3
+        day = 2
+        period = 4
+        
+        result = await get_link_in_box_day_period(west, south, east, north, day, period)
+        
+        # Check that all link IDs are distinct
+        assert len(result) == len(set(result)), "Result should contain distinct link IDs only"
+        
+        await database.disconnect()
+    
+    @pytest.mark.asyncio
+    async def test_get_link_in_box_error_handling(self):
+        """Test error handling when database query fails"""
+        # Connect to database
+        if not database.is_connected:
+            await database.connect()
+        
+        # Temporarily disconnect database to simulate error
+        await database.disconnect()
+        
+        with pytest.raises(Exception) as exc_info:
+            await get_link_in_box_day_period(-81.8, 30.1, -81.6, 30.3, 2, 4)
+        
+        assert "Failed to retrieve links in box by day and period" in str(exc_info.value)
+    
+    @pytest.mark.asyncio
+    async def test_get_link_in_box_coordinate_order(self):
+        """Test different coordinate orderings (west/east, south/north)"""
+        # Connect to database
+        if not database.is_connected:
+            await database.connect()
+        
+        day = 2
+        period = 4
+        
+        # Normal order
+        result_normal = await get_link_in_box_day_period(-81.8, 30.1, -81.6, 30.3, day, period)
+        
+        # Swapped west/east (should still work as PostGIS handles this)
+        result_swapped_lon = await get_link_in_box_day_period(-81.6, 30.1, -81.8, 30.3, day, period)
+        
+        # Both should return the same results (PostGIS normalizes the envelope)
+        assert set(result_normal) == set(result_swapped_lon)
+        
+        await database.disconnect()
+
+
+class Test_get_average_speed_by_day_period_additional:
+    """Additional test cases for get_average_speed_by_day_period function"""
+    
     @pytest.mark.asyncio 
     async def test_data_consistency(self):
         """Test that repeated calls return consistent results"""
