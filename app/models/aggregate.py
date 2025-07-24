@@ -16,3 +16,4 @@ class AggregateResponse(BaseModel):
                 "average_speed": 42.75
             }
         }
+

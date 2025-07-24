@@ -10,7 +10,7 @@ link_info_table = sqlalchemy.Table(
     "link_info",
     metadata,
     sqlalchemy.Column("link_id", sqlalchemy.BigInteger, primary_key=True),
-    sqlalchemy.Column("_length", sqlalchemy.Numeric),
+    sqlalchemy.Column("length", sqlalchemy.Numeric),
     sqlalchemy.Column("road_name", sqlalchemy.Text),
     sqlalchemy.Column("usdk_speed_category", sqlalchemy.Integer),
     sqlalchemy.Column("funclass_id", sqlalchemy.Integer),
