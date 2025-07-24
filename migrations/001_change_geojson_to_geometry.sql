@@ -29,10 +29,10 @@ WHERE geo_json IS NOT NULL;
 CREATE INDEX idx_link_info_geometry ON link_info USING GIST (geometry);
 
 -- Step 4: Drop the old geo_json column (uncomment when ready)
--- ALTER TABLE link_info DROP COLUMN geo_json;
+ALTER TABLE link_info DROP COLUMN geo_json;
 
 -- Verification queries (run these to check the migration)
--- SELECT COUNT(*) as total_records FROM link_info;
--- SELECT COUNT(*) as records_with_geometry FROM link_info WHERE geometry IS NOT NULL;
--- SELECT COUNT(*) as records_with_geojson FROM link_info WHERE geo_json IS NOT NULL;
--- SELECT ST_GeometryType(geometry), COUNT(*) FROM link_info WHERE geometry IS NOT NULL GROUP BY ST_GeometryType(geometry);
+SELECT COUNT(*) as total_records FROM link_info;
+SELECT COUNT(*) as records_with_geometry FROM link_info WHERE geometry IS NOT NULL;
+SELECT COUNT(*) as records_with_geojson FROM link_info WHERE geo_json IS NOT NULL;
+SELECT ST_GeometryType(geometry), COUNT(*) FROM link_info WHERE geometry IS NOT NULL GROUP BY ST_GeometryType(geometry);

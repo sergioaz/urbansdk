@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from fastapi import Query
 from app.helpers.periods import DayName, PeriodName, get_day_number, get_period_number
 
@@ -27,20 +27,13 @@ class AggregateRequest(BaseModel):
     )
 
 
-class AggregateResponse(BaseModel):
+class LinkData(BaseModel):
+    """Model for individual link data"""
+    
+    link_id: int = Field(..., description="Link identifier")
+    geometry: Optional[str] = Field(None, description="WKT LINESTRING geometry")
+    road_name: Optional[str] = Field(None, description="Name of the road")
+    average_speed: float = Field(..., description="Average speed for this link")
 
-    """Response model for aggregate speed data"""
-    day_of_week: int = Field(..., description="Day of week (1-7, where 1=Monday)")
-    period: int = Field(..., description="Time period identifier")
-    average_speed: float = Field(..., description="Average speed for the day and period")
 
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "day_of_week": 2,
-                "period": 4,
-                "average_speed": 42.75
-            }
-        }
-    )
 

@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, HTTPException
-from app.models.spatial_filter import SpatialFilterIn, SpatialFilterResponse
-from app.services.aggregate import get_link_in_box_day_period
+from app.models.spatial_filter import SpatialFilterIn, SpatialFilterResponse, LinkGeometry
+from app.services.aggregate import get_links_with_geometries_in_box_day_period
 
 router = APIRouter()
 
@@ -11,13 +11,13 @@ logger = logging.getLogger(__name__)
 @router.post("/spatial-filter/", response_model=SpatialFilterResponse)
 async def get_links_in_spatial_filter(filter_request: SpatialFilterIn):
     """
-    Get link IDs within a geographic bounding box for a specific day and time period.
+    Get links with LINESTRING geometries within a geographic bounding box for a specific day and time period.
     
     Args:
         filter_request: Spatial filter request containing day, period, and bounding box
         
     Returns:
-        SpatialFilterResponse: List of link IDs and metadata
+        SpatialFilterResponse: List of links with geometries and metadata
         
     Example Request Body:
         {
@@ -28,8 +28,15 @@ async def get_links_in_spatial_filter(filter_request: SpatialFilterIn):
         
     Example Response:
         {
-            "link_ids": [1148855686, 1240632857, 1240632858],
-            "count": 3,
+            "links": [
+                {
+                    "link_id": 1148855686,
+                    "road_name": "Main Street",
+                    "geometry": "LINESTRING(-81.75 30.2, -81.74 30.21)",
+                    "average_speed": 35.5
+                }
+            ],
+            "count": 1,
             "day_of_week": 3,
             "period": 3,
             "bbox": [-81.8, 30.1, -81.6, 30.3]
@@ -63,15 +70,28 @@ async def get_links_in_spatial_filter(filter_request: SpatialFilterIn):
                    f"period={filter_request.period} ({period_number}), "
                    f"bbox=[{west}, {south}, {east}, {north}]")
         
-        # Call the service function
-        link_ids = await get_link_in_box_day_period(west, south, east, north, day_number, period_number)
+        # Call the service function to get links with geometries
+        links_data = await get_links_with_geometries_in_box_day_period(
+            west, south, east, north, day_number, period_number
+        )
         
-        logger.info(f"Found {len(link_ids)} links in spatial filter")
+        logger.info(f"Found {len(links_data)} links in spatial filter")
+        
+        # Convert service response to LinkGeometry models
+        links = [
+            LinkGeometry(
+                link_id=link["link_id"],
+                road_name=link["road_name"],
+                geometry=link["geometry"],
+                average_speed=link["average_speed"]
+            )
+            for link in links_data
+        ]
         
         # Build response
         response = SpatialFilterResponse(
-            link_ids=link_ids,
-            count=len(link_ids),
+            links=links,
+            count=len(links),
             day_of_week=day_number,
             period=period_number,
             bbox=filter_request.bbox

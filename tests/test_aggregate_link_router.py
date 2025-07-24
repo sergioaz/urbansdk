@@ -191,7 +191,7 @@ async def test_get_aggregate_link_data_different_link_ids():
 
 
 @pytest.mark.asyncio
-@patch("app.services.aggregate.get_average_speed_by_link_day_period", new_callable=AsyncMock)
+@patch("app.routers.aggregate_link.get_average_speed_by_link_day_period", new_callable=AsyncMock)
 async def test_get_aggregate_link_data_with_mock_data(mock_service):
     """Test with mocked service to verify router functionality without database"""
     # Mock the async service function to return sample data
@@ -204,9 +204,9 @@ async def test_get_aggregate_link_data_with_mock_data(mock_service):
         "record_count": 150,
         "length": 0.123456,
         "road_name": "Test Road",
-        "usdk_speed_category": "Urban",
+        "usdk_speed_category": 40,  # Should be integer, not string
         "funclass_id": 4,
-        "speedcat": "Medium",
+        "speedcat": 2,  # Should be integer, not string
         "volume_value": 1000,
         "volume_bin_id": 2,
         "volume_year": 2023,
@@ -240,7 +240,7 @@ async def test_get_aggregate_link_data_with_mock_data(mock_service):
         mock_service.assert_called_once_with(1148855686, 3, 3)  # link_id, day_number, period_number
 
 @pytest.mark.asyncio
-@patch("app.services.aggregate.get_average_speed_by_link_day_period", new_callable=AsyncMock)
+@patch("app.routers.aggregate_link.get_average_speed_by_link_day_period", new_callable=AsyncMock)
 async def test_get_aggregate_link_data_with_mock_no_data(mock_service):
     """Test with mocked service returning no data scenario"""
     # Mock the service function to return no data found

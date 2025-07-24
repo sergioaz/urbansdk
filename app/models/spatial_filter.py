@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from typing import List
+from typing import List, Dict, Optional
 from app.helpers.periods import DayName, PeriodName, get_day_number, get_period_number
 
 
@@ -59,10 +59,19 @@ class SpatialFilterIn(BaseModel):
     )
 
 
-class SpatialFilterResponse(BaseModel):
-    """Response model for spatial filter containing link IDs"""
+class LinkGeometry(BaseModel):
+    """Model for link geometry data"""
+    
+    link_id: int = Field(..., description="Link identifier")
+    road_name: Optional[str] = Field(None, description="Name of the road")
+    geometry: Optional[str] = Field(None, description="WKT LINESTRING geometry")
+    average_speed: float = Field(..., description="Average speed for the link")
 
-    link_ids: List[int] = Field(..., description="List of link IDs within the specified spatial and temporal filters")
+
+class SpatialFilterResponse(BaseModel):
+    """Response model for spatial filter containing links with geometries"""
+
+    links: List[LinkGeometry] = Field(..., description="List of links with geometries within the specified spatial and temporal filters")
     count: int = Field(..., description="Number of links found")
     day_of_week: int = Field(..., description="Day of week number (1-7, where 1=Sunday)")
     period: int = Field(..., description="Time period number (1-7)")
@@ -71,8 +80,15 @@ class SpatialFilterResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "link_ids": [1148855686, 1240632857, 1240632858],
-                "count": 3,
+                "links": [
+                    {
+                        "link_id": 1148855686,
+                        "road_name": "Main Street",
+                        "geometry": "LINESTRING(-81.75 30.2, -81.74 30.21)",
+                        "average_speed": 35.5
+                    }
+                ],
+                "count": 1,
                 "day_of_week": 3,
                 "period": 3,
                 "bbox": [-81.8, 30.1, -81.6, 30.3]

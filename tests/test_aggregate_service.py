@@ -200,6 +200,28 @@ class Test_get_average_speed_by_day_period:
 
         await database.disconnect()  # Disconnect after test
 
+    """Additional test cases for get_average_speed_by_day_period function"""
+
+    @pytest.mark.asyncio
+    async def test_data_consistency(self):
+        """Test that repeated calls return consistent results"""
+        # connect to the database
+        if not database.is_connected:
+            await database.connect()
+
+        day = 2
+        period = 4
+
+        # Make multiple calls
+        result1 = await get_average_speed_by_day_period(day, period)
+        result2 = await get_average_speed_by_day_period(day, period)
+        result3 = await get_average_speed_by_day_period(day, period)
+
+        # Results should be identical
+        assert result1 == result2 == result3
+
+        await database.disconnect()  # Disconnect after test
+
 
 class Test_get_average_speed_by_link_day_period:
     """Test cases for get_average_speed_by_link_day_period function using live PostgreSQL connection"""
@@ -668,28 +690,3 @@ class Test_get_link_in_box_day_period:
         assert set(result_normal) == set(result_swapped_lon)
         
         await database.disconnect()
-
-
-class Test_get_average_speed_by_day_period_additional:
-    """Additional test cases for get_average_speed_by_day_period function"""
-    
-    @pytest.mark.asyncio 
-    async def test_data_consistency(self):
-        """Test that repeated calls return consistent results"""
-        # connect to the database
-        if not database.is_connected:
-            await database.connect()
-
-        day = 2
-        period = 4
-        
-        # Make multiple calls
-        result1 = await get_average_speed_by_day_period(day, period)
-        result2 = await get_average_speed_by_day_period(day, period)
-        result3 = await get_average_speed_by_day_period(day, period)
-        
-        # Results should be identical
-        assert result1 == result2 == result3
-
-        await database.disconnect()  # Disconnect after test
-

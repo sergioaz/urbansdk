@@ -31,14 +31,14 @@ class TestSpatialFilterRouter:
                 data = response.json()
 
                 # Check response structure
-                assert "link_ids" in data
+                assert "links" in data
                 assert "count" in data
                 assert "day_of_week" in data
                 assert "period" in data
                 assert "bbox" in data
 
                 # Check data types
-                assert isinstance(data["link_ids"], list)
+                assert isinstance(data["links"], list)
                 assert isinstance(data["count"], int)
                 assert isinstance(data["day_of_week"], int)
                 assert isinstance(data["period"], int)
@@ -48,12 +48,17 @@ class TestSpatialFilterRouter:
                 assert data["day_of_week"] == 3  # Tuesday = 3
                 assert data["period"] == 3       # AM Peak = 3
                 assert data["bbox"] == [-81.8, 30.1, -81.6, 30.3]
-                assert data["count"] == len(data["link_ids"])
+                assert data["count"] == len(data["links"])
 
-                # Check that all link_ids are integers
-                for link_id in data["link_ids"]:
-                    assert isinstance(link_id, int)
-                    assert link_id > 0
+                # Check that all links have required fields
+                for link in data["links"]:
+                    assert "link_id" in link
+                    assert "road_name" in link
+                    assert "geometry" in link
+                    assert "average_speed" in link
+                    assert isinstance(link["link_id"], int)
+                    assert link["link_id"] > 0
+                    assert isinstance(link["average_speed"], (int, float))
         except Exception as e:
             logging.error(f"Spatial filter error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -76,7 +81,7 @@ class TestSpatialFilterRouter:
             assert response.status_code == 200
             data = response.json()
             
-            assert data["link_ids"] == []
+            assert data["links"] == []
             assert data["count"] == 0
             assert data["day_of_week"] == 2  # Monday = 2
             assert data["period"] == 7       # Evening = 7
@@ -238,8 +243,9 @@ class TestSpatialFilterRouter:
             assert large_data["count"] >= small_data["count"]
             
             # All links from small bbox should be in large bbox
-            for link_id in small_data["link_ids"]:
-                assert link_id in large_data["link_ids"]
+            small_link_ids = {link["link_id"] for link in small_data["links"]}
+            large_link_ids = {link["link_id"] for link in large_data["links"]}
+            assert small_link_ids.issubset(large_link_ids)
     
     @pytest.mark.asyncio
     async def test_spatial_filter_response_format(self):
@@ -259,12 +265,12 @@ class TestSpatialFilterRouter:
             data = response.json()
             
             # Verify all required fields are present
-            required_fields = ["link_ids", "count", "day_of_week", "period", "bbox"]
+            required_fields = ["links", "count", "day_of_week", "period", "bbox"]
             for field in required_fields:
                 assert field in data
             
             # Verify field types match schema
-            assert isinstance(data["link_ids"], list)
+            assert isinstance(data["links"], list)
             assert isinstance(data["count"], int)
             assert isinstance(data["day_of_week"], int)
             assert isinstance(data["period"], int)
@@ -272,7 +278,16 @@ class TestSpatialFilterRouter:
             assert len(data["bbox"]) == 4
             
             # Verify data consistency
-            assert data["count"] == len(data["link_ids"])
+            assert data["count"] == len(data["links"])
+            
+            # Verify link structure if any links are present
+            for link in data["links"]:
+                assert "link_id" in link
+                assert "road_name" in link
+                assert "geometry" in link
+                assert "average_speed" in link
+                assert isinstance(link["link_id"], int)
+                assert isinstance(link["average_speed"], (int, float))
             assert data["day_of_week"] == 4  # Wednesday = 4
             assert data["period"] == 6       # PM Peak = 6
             assert data["bbox"] == [-81.8, 30.1, -81.6, 30.3]
