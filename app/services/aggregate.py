@@ -1,7 +1,10 @@
 from typing import List, Dict
 from sqlalchemy import select, func, text
 from geoalchemy2.functions import ST_AsText
-from app.db.database import database, duval_table, link_info_table
+from app.db.database import database, speed_record_table, link_table
+
+duval_table = speed_record_table
+link_info_table = link_table
 
 
 async def get_average_speed_by_day_period(day: int, period: int) -> Dict:
@@ -118,18 +121,9 @@ async def get_average_speed_by_link_day_period(link_id: int, day: int, period: i
                 duval_table.c.day_of_week,
                 duval_table.c.period,
                 func.avg(duval_table.c.average_speed).label("average_speed"),
-                func.avg(duval_table.c.freeflow).label("average_freeflow"),
                 func.count(duval_table.c.link_id).label("record_count"),
                 # Link metadata from link_info table
-                link_info_table.c.length,
                 link_info_table.c.road_name,
-                link_info_table.c.usdk_speed_category,
-                link_info_table.c.funclass_id,
-                link_info_table.c.speedcat,
-                link_info_table.c.volume_value,
-                link_info_table.c.volume_bin_id,
-                link_info_table.c.volume_year,
-                link_info_table.c.volumes_bin_description,
                 link_info_table.c.geometry
             )
             .select_from(
@@ -147,15 +141,7 @@ async def get_average_speed_by_link_day_period(link_id: int, day: int, period: i
                 duval_table.c.link_id,
                 duval_table.c.day_of_week,
                 duval_table.c.period,
-                link_info_table.c.length,
                 link_info_table.c.road_name,
-                link_info_table.c.usdk_speed_category,
-                link_info_table.c.funclass_id,
-                link_info_table.c.speedcat,
-                link_info_table.c.volume_value,
-                link_info_table.c.volume_bin_id,
-                link_info_table.c.volume_year,
-                link_info_table.c.volumes_bin_description,
                 link_info_table.c.geometry
             )
         )
@@ -169,18 +155,8 @@ async def get_average_speed_by_link_day_period(link_id: int, day: int, period: i
                 "day_of_week": result["day_of_week"],
                 "period": result["period"],
                 "average_speed": round(float(result["average_speed"]) if result["average_speed"] else 0, 2),
-                "average_freeflow": round(float(result["average_freeflow"]) if result["average_freeflow"] else 0, 2),
                 "record_count": result["record_count"],
-                # Link metadata
-                "length": round(float(result["length"]) if result["length"] else 0, 6),
                 "road_name": result["road_name"],
-                "usdk_speed_category": result["usdk_speed_category"],
-                "funclass_id": result["funclass_id"],
-                "speedcat": result["speedcat"],
-                "volume_value": result["volume_value"],
-                "volume_bin_id": result["volume_bin_id"],
-                "volume_year": result["volume_year"],
-                "volumes_bin_description": result["volumes_bin_description"],
                 "geometry": result["geometry"]
             }
         else:

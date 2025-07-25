@@ -38,8 +38,9 @@ async def test_get_aggregate_link_data():
             assert "day_of_week" in data
             assert "period" in data
             assert "average_speed" in data
+            assert "record_count" in data
             assert "road_name" in data
-            assert "length" in data
+            assert "geometry" in data
             
             # Verify correct mapping from day/period names to numbers
             assert data["link_id"] == link_id
@@ -194,23 +195,14 @@ async def test_get_aggregate_link_data_different_link_ids():
 @patch("app.routers.aggregate_link.get_average_speed_by_link_day_period", new_callable=AsyncMock)
 async def test_get_aggregate_link_data_with_mock_data(mock_service):
     """Test with mocked service to verify router functionality without database"""
-    # Mock the async service function to return sample data
+    # Mock the async service function to return sample data (only fields that exist in schema)
     mock_service.return_value = {
         "link_id": 1148855686,
         "day_of_week": 3,
         "period": 3,
         "average_speed": 42.75,
-        "average_freeflow": 55.2,
         "record_count": 150,
-        "length": 0.123456,
         "road_name": "Test Road",
-        "usdk_speed_category": 40,  # Should be integer, not string
-        "funclass_id": 4,
-        "speedcat": 2,  # Should be integer, not string
-        "volume_value": 1000,
-        "volume_bin_id": 2,
-        "volume_year": 2023,
-        "volumes_bin_description": "Medium Volume",
         "geometry": "LINESTRING(0 0, 1 1)"
     }
     
@@ -221,19 +213,21 @@ async def test_get_aggregate_link_data_with_mock_data(mock_service):
         assert response.status_code == 200
         data = response.json()
         
-        # Verify response structure
+        # Verify response structure (only fields that exist in our schema)
         assert "link_id" in data
         assert "day_of_week" in data
         assert "period" in data
         assert "average_speed" in data
+        assert "record_count" in data
         assert "road_name" in data
-        assert "length" in data
+        assert "geometry" in data
         
         # Verify correct mapping from day/period names to numbers
         assert data["link_id"] == 1148855686
         assert data["day_of_week"] == 3  # Tuesday maps to 3
         assert data["period"] == 3       # AM Peak maps to 3
         assert data["average_speed"] == 42.75
+        assert data["record_count"] == 150
         assert data["road_name"] == "Test Road"
         
         # Verify the service was called with the correct parameters

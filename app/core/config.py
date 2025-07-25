@@ -31,3 +31,5 @@ def get_config(env_state: str):
 load_dotenv()
 
 config = get_config(os.getenv("ENV_STATE", "dev"))
+
+pass

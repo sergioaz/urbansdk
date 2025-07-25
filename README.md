@@ -131,8 +131,48 @@ df = pd.DataFrame([
 ])
 df.sort_values("avg_speed").head(10)
 3. 🏗 Architecture Diagram
-● Provide a visual diagram showing:
-○ FastAPI service structure
-○ Database integration (PostgreSQL + PostGIS)
-○ Data flow between ingestion, processing, API, and notebook
-● Format: PNG, SVG, or embed in README (e.g., from Draw.io)
+
+## System Architecture
+
+### High-Level Architecture Overview
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Data Sources  │    │  Data Ingestion  │    │    Database     │
+│                 │    │                  │    │                 │
+│ • Speed Records │───▶│ • load_speed_    │───▶│  PostgreSQL +   │
+│   PARQUET       │    │   records.py     │    │    PostGIS      │
+│ • Link Info     │    │ • load_link.py   │    │                 │
+│   PARQUET       │    │                  │    │ • speed_record  │
+└─────────────────┘    └──────────────────┘    │ • link          │
+                                               └─────────────────┘
+                                                          │
+                                                          ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│    Clients      │    │   FastAPI App    │    │   Services      │
+│                 │    │                  │    │                 │
+│ • Web Apps      │◀───│ • Routers        │◀───│ • aggregate.py  │
+│ • Mobile Apps   │    │   - aggregate    │    │ • Business      │
+│ • API Users     │    │   - aggregate_   │    │   Logic         │
+│ • Notebooks     │    │     link         │    │ • Spatial       │
+│                 │    │   - spatial_     │    │   Queries       │
+└─────────────────┘    │     filter       │    └─────────────────┘
+                       │ • Models         │
+                       │ • Validation     │
+                       └──────────────────┘
+```
+
+### Detailed Component Architecture
+
+For a comprehensive architecture diagram and detailed component documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+### Key Features
+
+- **Spatial Database**: PostgreSQL with PostGIS for geometric operations
+- **Async API**: FastAPI with async/await for high performance
+- **Data Validation**: Pydantic models for request/response validation
+- **Modular Design**: Clear separation of concerns (routing, business logic, data access)
+- **Comprehensive Testing**: Full test suite with 55+ test cases
+- **Analytics Ready**: Direct database access for Jupyter notebooks
+
+● Format: Mermaid diagram embedded in [ARCHITECTURE.md](ARCHITECTURE.md)

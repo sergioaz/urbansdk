@@ -5,40 +5,28 @@ from app.core.config import config
 
 metadata = sqlalchemy.MetaData()
 
-# Link info table definition
-link_info_table = sqlalchemy.Table(
-    "link_info",
+# Link table definition
+link_table = sqlalchemy.Table(
+    "link",
     metadata,
-    sqlalchemy.Column("link_id", sqlalchemy.BigInteger, primary_key=True),
-    sqlalchemy.Column("length", sqlalchemy.Numeric),
-    sqlalchemy.Column("road_name", sqlalchemy.Text),
-    sqlalchemy.Column("usdk_speed_category", sqlalchemy.Integer),
-    sqlalchemy.Column("funclass_id", sqlalchemy.Integer),
-    sqlalchemy.Column("speedcat", sqlalchemy.Integer),
-    sqlalchemy.Column("volume_value", sqlalchemy.Integer),
-    sqlalchemy.Column("volume_bin_id", sqlalchemy.Integer),
-    sqlalchemy.Column("volume_year", sqlalchemy.Integer),
-    sqlalchemy.Column("volumes_bin_description", sqlalchemy.Text),
-    sqlalchemy.Column("geometry", Geometry('LINESTRING', srid=4326)),
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True, autoincrement=True),
+    sqlalchemy.Column("link_id", sqlalchemy.Integer, unique=True, nullable=False),
+    sqlalchemy.Column("road_name", sqlalchemy.String(255)),
+    sqlalchemy.Column("geometry", Geometry('GEOMETRY', srid=4326)),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=sqlalchemy.func.current_timestamp()),
 )
 
-# Duval table definition
-duval_table = sqlalchemy.Table(
-    "duval",
+# Speed record table definition
+speed_record_table = sqlalchemy.Table(
+    "speed_record",
     metadata,
-    sqlalchemy.Column("link_id", sqlalchemy.BigInteger, sqlalchemy.ForeignKey("link_info.link_id")),
-    sqlalchemy.Column("date_time", sqlalchemy.DateTime),
-    sqlalchemy.Column("freeflow", sqlalchemy.Numeric),
-    sqlalchemy.Column("count", sqlalchemy.Integer),
-    sqlalchemy.Column("std_dev", sqlalchemy.Numeric),
-    sqlalchemy.Column("min", sqlalchemy.Numeric),
-    sqlalchemy.Column("max", sqlalchemy.Numeric),
-    sqlalchemy.Column("confidence", sqlalchemy.Integer),
-    sqlalchemy.Column("average_speed", sqlalchemy.Numeric),
-    sqlalchemy.Column("average_pct_85", sqlalchemy.Numeric),
-    sqlalchemy.Column("average_pct_95", sqlalchemy.Numeric),
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True, autoincrement=True),
+    sqlalchemy.Column("link_id", sqlalchemy.Integer, nullable=False),
+    sqlalchemy.Column("date_time", sqlalchemy.DateTime, nullable=False),
+    sqlalchemy.Column("average_speed", sqlalchemy.Numeric(10, 2)),
     sqlalchemy.Column("day_of_week", sqlalchemy.Integer),
     sqlalchemy.Column("period", sqlalchemy.Integer),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, server_default=sqlalchemy.func.current_timestamp()),
 )
 
 
