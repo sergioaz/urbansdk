@@ -1,4 +1,4 @@
-# 🛰 Urban SDK - Traffic Analysis Microservice
+# 🛰 Urban Traffic SDK - Traffic Analysis Microservice
 
 ## Overview
 As a Senior Engineer at Bright New Company, you'll be designing geospatial microservices using modern Python frameworks and scalable data backends. This assignment simulates a real-world task using traffic speed data to provide spatial insights through an API and visualization.
