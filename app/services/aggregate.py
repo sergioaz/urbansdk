@@ -2,6 +2,7 @@ from typing import List, Dict
 from sqlalchemy import select, func, text
 from geoalchemy2.functions import ST_AsText
 from app.db.database import database, speed_record_table, link_table
+from app.helpers.periods import get_period_name
 
 duval_table = speed_record_table
 link_info_table = link_table
@@ -111,7 +112,6 @@ async def get_average_speed_by_link_day_period(link_id: int, day: int, period: i
     Raises:
         Exception: If database query fails
     """
-    #TODO: Make date and period optional, exclude from query if not provided
 
     try:
         # Build the query with JOIN to get speed data and metadata
@@ -364,3 +364,132 @@ async def get_links_geometry_roadname_speed_by_day_period(day: int, period: int)
         
     except Exception as e:
         raise Exception(f"Failed to get simplified aggregate data: {str(e)}")
+
+
+async def get_slow_links_period_threshold_min_days(period: int, threshold: float, min_days: int) -> List[Dict]:
+    """
+    Get links with average speeds below a threshold for at least min_days in a week.
+    
+    This function identifies links that consistently perform poorly by finding links
+    that have average speeds below the specified threshold for a minimum number of days
+    within a week for the given time period.
+    
+    Args:
+        period (int): Time period identifier (1-7)
+        threshold (float): Speed threshold - links below this speed are considered slow
+        min_days (int): Minimum number of days in a week a link must be below threshold
+
+    Returns:
+        List[Dict]: List of slow links with their metadata, containing:
+            - link_id: Unique identifier for the link
+            - geometry: WKT geometry string of the link
+            - road_name: Name of the road
+            - overall_average_speed: Average speed across all days for this period
+            - slow_days_count: Number of days the link was below threshold
+            - daily_speeds: Dictionary of day -> average_speed for each day
+
+    Raises:
+        Exception: If database query fails
+    """
+    
+    # Validate inputs
+    if min_days < 1 or min_days > 7:
+        raise ValueError("min_days must be between 1 and 7")
+    if threshold <= 0:
+        raise ValueError("threshold must be positive")
+    if period < 1 or period > 7:
+        raise ValueError("period must be between 1 and 7")
+
+    try:
+        # Step 1: Get daily average speeds for each link in the specified period
+        daily_speeds_query = (
+            select(
+                duval_table.c.link_id,
+                duval_table.c.day_of_week,
+                func.avg(duval_table.c.average_speed).label("daily_avg_speed"),
+                func.count(duval_table.c.link_id).label("daily_record_count"),
+                # Link metadata (same for all days, so we'll get it once per link)
+                link_info_table.c.road_name,
+                ST_AsText(link_info_table.c.geometry).label("geometry_wkt")
+            )
+            .select_from(
+                duval_table.join(
+                    link_info_table,
+                    duval_table.c.link_id == link_info_table.c.link_id
+                )
+            )
+            .where(
+                duval_table.c.period == period
+            )
+            .group_by(
+                duval_table.c.link_id,
+                duval_table.c.day_of_week,
+                link_info_table.c.road_name,
+                link_info_table.c.geometry
+            )
+            .order_by(duval_table.c.link_id, duval_table.c.day_of_week)
+            .having(func.avg(duval_table.c.average_speed).label("daily_avg_speed") > threshold)
+
+        )
+
+        # Execute the query to get daily speeds
+        daily_results = await database.fetch_all(daily_speeds_query)
+
+        # Step 2: Process results to identify links meeting the criteria
+        link_data = {}
+        
+        for row in daily_results:
+            link_id = row["link_id"]
+            day_of_week = row["day_of_week"]
+            daily_speed = float(row["daily_avg_speed"]) if row["daily_avg_speed"] else 0.0
+            
+            # Initialize link data if not exists
+            if link_id not in link_data:
+                link_data[link_id] = {
+                    "link_id": link_id,
+                    "road_name": row["road_name"],
+                    "geometry": row["geometry_wkt"],
+                    "daily_speeds": {},
+                    "total_speed": 0.0,
+                    "day_count": 0,
+                    "slow_days_count": 0
+                }
+            
+            # Add daily speed data
+            link_data[link_id]["daily_speeds"][day_of_week] = daily_speed
+            link_data[link_id]["total_speed"] += daily_speed
+            link_data[link_id]["day_count"] += 1
+            
+            # Count days below threshold ???
+            if daily_speed < threshold:
+                link_data[link_id]["slow_days_count"] += 1
+            else:
+                print ("Should not be here!")
+
+        # Step 3: Filter links that meet the minimum days criteria and build final result
+        slow_links = []
+        
+        for link_id, data in link_data.items():
+            if data["slow_days_count"] >= min_days:
+                # Calculate overall average speed for this link across all days
+                overall_avg = data["total_speed"] / data["day_count"] if data["day_count"] > 0 else 0.0
+                
+                slow_links.append({
+                    "link_id": link_id,
+                    "geometry": data["geometry"],
+                    "road_name": data["road_name"],
+                    "overall_average_speed": round(overall_avg, 2),
+                    "slow_days_count": data["slow_days_count"],
+                    "total_days_with_data": data["day_count"],
+                    "daily_speeds": {day: round(speed, 2) for day, speed in data["daily_speeds"].items()}
+                })
+        
+        # Sort by link_id for consistent output
+        slow_links.sort(key=lambda x: x["link_id"])
+        
+        return slow_links
+
+    except ValueError as ve:
+        raise Exception(f"Invalid parameters: {str(ve)}")
+    except Exception as e:
+        raise Exception(f"Failed to get links with average speeds in period '{get_period_name(period)}' below threshold {threshold} for at least {min_days} days in a week: {str(e)}")
