@@ -9,10 +9,7 @@ class SlowLinksRequest(BaseModel):
     period: PeriodName = Field(Query(..., description="Time period name"))
     threshold: float = Field(Query(..., description="Threshold speed for slow links"))
     min_days: int = Field(Query(..., description="Min days in a week for slow links"))
-    
-    def get_day_number(self) -> int:
-        """Convert day name to day number"""
-        return get_day_number(self.day)
+
     
     def get_period_number(self) -> int:
         """Convert period name to period number"""
@@ -35,7 +32,7 @@ class LinkData(BaseModel):
     link_id: int = Field(..., description="Link identifier")
     geometry: Optional[str] = Field(None, description="WKT LINESTRING geometry")
     road_name: Optional[str] = Field(None, description="Name of the road")
-    average_speed: float = Field(..., description="Average speed for this link")
+    overall_average_speed: float = Field(..., description="Calculated overall Average speed for this link")
 
 
 

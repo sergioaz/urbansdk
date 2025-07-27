@@ -3,6 +3,7 @@ from sqlalchemy import select, func, text
 from geoalchemy2.functions import ST_AsText
 from app.db.database import database, speed_record_table, link_table
 from app.helpers.periods import get_period_name
+import math
 
 duval_table = speed_record_table
 link_info_table = link_table
@@ -428,7 +429,7 @@ async def get_slow_links_period_threshold_min_days(period: int, threshold: float
                 link_info_table.c.geometry
             )
             .order_by(duval_table.c.link_id, duval_table.c.day_of_week)
-            .having(func.avg(duval_table.c.average_speed).label("daily_avg_speed") > threshold)
+            .having(func.avg(duval_table.c.average_speed) < threshold)
 
         )
 
@@ -478,7 +479,7 @@ async def get_slow_links_period_threshold_min_days(period: int, threshold: float
                     "link_id": link_id,
                     "geometry": data["geometry"],
                     "road_name": data["road_name"],
-                    "overall_average_speed": round(overall_avg, 2),
+                    "overall_average_speed": float(round(math.floor(overall_avg), 2)),
                     "slow_days_count": data["slow_days_count"],
                     "total_days_with_data": data["day_count"],
                     "daily_speeds": {day: round(speed, 2) for day, speed in data["daily_speeds"].items()}

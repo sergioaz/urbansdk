@@ -724,14 +724,34 @@ class Test_get_slow_links_period_threshold_min_days:
         await database.disconnect()  # Disconnect after test
 
         # Assertions
-        assert isinstance(result, dict)
-        assert "day_of_week" in result
-        assert "period" in result
-        assert "average_speed" in result
+        assert isinstance(result, list)
 
-        assert result["period"] == period
-        assert isinstance(result["average_speed"], float)
-        assert result["average_speed"] >= threshold
+        # If data exists, check structure
+        if len(result) > 0:
+            for link in result:
+                assert isinstance(link, dict)
+                assert "link_id" in link
+                assert "geometry" in link
+                assert "road_name" in link
+                assert "overall_average_speed" in link
+
+                # Validate data types
+                assert isinstance(link["link_id"], int)
+                assert link["link_id"] > 0
+                assert isinstance(link["overall_average_speed"], float)
+                assert link["overall_average_speed"] >= 0.0
+                assert link["overall_average_speed"] <= threshold
+
+                # Geometry can be None or string
+                if link["geometry"] is not None:
+                    assert isinstance(link["geometry"], str)
+                    assert link["geometry"].startswith("LINESTRING")
+
+                # Road name can be None or string
+                if link["road_name"] is not None:
+                    assert isinstance(link["road_name"], str)
+
+
 
 
 class Test_get_links_geometry_roadname_speed_by_day_period:

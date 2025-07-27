@@ -13,7 +13,7 @@ from app.main import app
 os.environ["ENV_STATE"] = "dev"
 
 # runs once per session
-"""
+
 @pytest.fixture(scope = "session")
 def anyio_backend():
     return "asyncio"
@@ -38,8 +38,12 @@ def database_connection():
 @pytest.fixture(scope="session", autouse=True)
 async def setup_database():
     #Setup database connection for all tests.
+    print("in conftest.py setup_database waiting for connect")
+
     await database.connect()
     yield
+    print("in conftest.py setup_database waiting for disconnect")
     await database.disconnect()
 
+"""
 """
