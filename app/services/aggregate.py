@@ -5,10 +5,6 @@ from app.db.database import database, speed_record_table, link_table
 from app.helpers.periods import get_period_name
 import math
 
-duval_table = speed_record_table
-link_info_table = link_table
-
-
 async def get_average_speed_by_day_period(day: int, period: int) -> Dict:
     """
     Calculate aggregated average speed for the given day and time period,
@@ -31,32 +27,32 @@ async def get_average_speed_by_day_period(day: int, period: int) -> Dict:
         # Build the query to get individual link data with road names and geometries
         query = (
             select(
-                duval_table.c.link_id,
-                duval_table.c.day_of_week,
-                duval_table.c.period,
-                func.avg(duval_table.c.average_speed).label("link_average_speed"),
-                func.count(duval_table.c.link_id).label("link_record_count"),
-                link_info_table.c.road_name,
-                ST_AsText(link_info_table.c.geometry).label("geometry_wkt")
+                speed_record_table.c.link_id,
+                speed_record_table.c.day_of_week,
+                speed_record_table.c.period,
+                func.avg(speed_record_table.c.average_speed).label("link_average_speed"),
+                func.count(speed_record_table.c.link_id).label("link_record_count"),
+                link_table.c.road_name,
+                ST_AsText(link_table.c.geometry).label("geometry_wkt")
             )
             .select_from(
-                duval_table.join(
-                    link_info_table,
-                    duval_table.c.link_id == link_info_table.c.link_id
+                speed_record_table.join(
+                    link_table,
+                    speed_record_table.c.link_id == link_table.c.link_id
                 )
             )
             .where(
-                (duval_table.c.day_of_week == day) & 
-                (duval_table.c.period == period)
+                (speed_record_table.c.day_of_week == day) &
+                (speed_record_table.c.period == period)
             )
             .group_by(
-                duval_table.c.link_id,
-                duval_table.c.day_of_week,
-                duval_table.c.period,
-                link_info_table.c.road_name,
-                link_info_table.c.geometry
+                speed_record_table.c.link_id,
+                speed_record_table.c.day_of_week,
+                speed_record_table.c.period,
+                link_table.c.road_name,
+                link_table.c.geometry
             )
-            .order_by(duval_table.c.link_id)
+            .order_by(speed_record_table.c.link_id)
         )
         
         # Execute the query to get all link data
@@ -118,32 +114,32 @@ async def get_average_speed_by_link_day_period(link_id: int, day: int, period: i
         # Build the query with JOIN to get speed data and metadata
         query = (
             select(
-                duval_table.c.link_id,
-                duval_table.c.day_of_week,
-                duval_table.c.period,
-                func.avg(duval_table.c.average_speed).label("average_speed"),
-                func.count(duval_table.c.link_id).label("record_count"),
+                speed_record_table.c.link_id,
+                speed_record_table.c.day_of_week,
+                speed_record_table.c.period,
+                func.avg(speed_record_table.c.average_speed).label("average_speed"),
+                func.count(speed_record_table.c.link_id).label("record_count"),
                 # Link metadata from link_info table
-                link_info_table.c.road_name,
-                link_info_table.c.geometry
+                link_table.c.road_name,
+                link_table.c.geometry
             )
             .select_from(
-                duval_table.join(
-                    link_info_table,
-                    duval_table.c.link_id == link_info_table.c.link_id
+                speed_record_table.join(
+                    link_table,
+                    speed_record_table.c.link_id == link_table.c.link_id
                 )
             )
             .where(
-                (duval_table.c.link_id == link_id) &
-                (duval_table.c.day_of_week == day) &
-                (duval_table.c.period == period)
+                (speed_record_table.c.link_id == link_id) &
+                (speed_record_table.c.day_of_week == day) &
+                (speed_record_table.c.period == period)
             )
             .group_by(
-                duval_table.c.link_id,
-                duval_table.c.day_of_week,
-                duval_table.c.period,
-                link_info_table.c.road_name,
-                link_info_table.c.geometry
+                speed_record_table.c.link_id,
+                speed_record_table.c.day_of_week,
+                speed_record_table.c.period,
+                link_table.c.road_name,
+                link_table.c.geometry
             )
         )
 
@@ -198,11 +194,11 @@ async def get_link_in_box_day_period(west: float, south: float, east: float, nor
     try:
         # Create a query to retrieve distinct link IDs in the bounding box, day, and time period
         query = (
-            select(duval_table.c.link_id)
+            select(speed_record_table.c.link_id)
             .select_from(
-                duval_table.join(
-                    link_info_table,
-                    duval_table.c.link_id == link_info_table.c.link_id
+                speed_record_table.join(
+                    link_table,
+                    speed_record_table.c.link_id == link_table.c.link_id
                 )
             )
             .where(
@@ -212,8 +208,8 @@ async def get_link_in_box_day_period(west: float, south: float, east: float, nor
                     f"ST_MakeEnvelope({west}, {south}, {east}, {north}, 4326)"
                     f")"
                 ) &
-                (duval_table.c.day_of_week == day) &
-                (duval_table.c.period == period)
+                (speed_record_table.c.day_of_week == day) &
+                (speed_record_table.c.period == period)
             )
             .distinct()
         )
@@ -256,15 +252,15 @@ async def get_links_with_geometries_in_box_day_period(
         # Create a query to retrieve link data with geometries in the bounding box
         query = (
             select(
-                duval_table.c.link_id,
-                link_info_table.c.road_name,
-                ST_AsText(link_info_table.c.geometry).label("geometry_wkt"),
-                func.avg(duval_table.c.average_speed).label("average_speed")
+                speed_record_table.c.link_id,
+                link_table.c.road_name,
+                ST_AsText(link_table.c.geometry).label("geometry_wkt"),
+                func.avg(speed_record_table.c.average_speed).label("average_speed")
             )
             .select_from(
-                duval_table.join(
-                    link_info_table,
-                    duval_table.c.link_id == link_info_table.c.link_id
+                speed_record_table.join(
+                    link_table,
+                    speed_record_table.c.link_id == link_table.c.link_id
                 )
             )
             .where(
@@ -274,13 +270,13 @@ async def get_links_with_geometries_in_box_day_period(
                     f"ST_MakeEnvelope({west}, {south}, {east}, {north}, 4326)"
                     f")"
                 ) &
-                (duval_table.c.day_of_week == day) &
-                (duval_table.c.period == period)
+                (speed_record_table.c.day_of_week == day) &
+                (speed_record_table.c.period == period)
             )
             .group_by(
-                duval_table.c.link_id,
-                link_info_table.c.road_name,
-                link_info_table.c.geometry
+                speed_record_table.c.link_id,
+                link_table.c.road_name,
+                link_table.c.geometry
             )
             .distinct()
         )
@@ -325,27 +321,27 @@ async def get_links_geometry_roadname_speed_by_day_period(day: int, period: int)
         # Build the query to get individual link data with road names and geometries
         query = (
             select(
-                duval_table.c.link_id,
-                link_info_table.c.road_name,
-                ST_AsText(link_info_table.c.geometry).label("geometry_wkt"),
-                func.avg(duval_table.c.average_speed).label("link_average_speed")
+                speed_record_table.c.link_id,
+                link_table.c.road_name,
+                ST_AsText(link_table.c.geometry).label("geometry_wkt"),
+                func.avg(speed_record_table.c.average_speed).label("link_average_speed")
             )
             .select_from(
-                duval_table.join(
-                    link_info_table,
-                    duval_table.c.link_id == link_info_table.c.link_id
+                speed_record_table.join(
+                    link_table,
+                    speed_record_table.c.link_id == link_table.c.link_id
                 )
             )
             .where(
-                (duval_table.c.day_of_week == day) & 
-                (duval_table.c.period == period)
+                (speed_record_table.c.day_of_week == day) &
+                (speed_record_table.c.period == period)
             )
             .group_by(
-                duval_table.c.link_id,
-                link_info_table.c.road_name,
-                link_info_table.c.geometry
+                speed_record_table.c.link_id,
+                link_table.c.road_name,
+                link_table.c.geometry
             )
-            .order_by(duval_table.c.link_id)
+            .order_by(speed_record_table.c.link_id)
         )
         
         # Execute the query to get all link data
@@ -405,31 +401,31 @@ async def get_slow_links_period_threshold_min_days(period: int, threshold: float
         # Step 1: Get daily average speeds for each link in the specified period
         daily_speeds_query = (
             select(
-                duval_table.c.link_id,
-                duval_table.c.day_of_week,
-                func.avg(duval_table.c.average_speed).label("daily_avg_speed"),
-                func.count(duval_table.c.link_id).label("daily_record_count"),
+                speed_record_table.c.link_id,
+                speed_record_table.c.day_of_week,
+                func.avg(speed_record_table.c.average_speed).label("daily_avg_speed"),
+                func.count(speed_record_table.c.link_id).label("daily_record_count"),
                 # Link metadata (same for all days, so we'll get it once per link)
-                link_info_table.c.road_name,
-                ST_AsText(link_info_table.c.geometry).label("geometry_wkt")
+                link_table.c.road_name,
+                ST_AsText(link_table.c.geometry).label("geometry_wkt")
             )
             .select_from(
-                duval_table.join(
-                    link_info_table,
-                    duval_table.c.link_id == link_info_table.c.link_id
+                speed_record_table.join(
+                    link_table,
+                    speed_record_table.c.link_id == link_table.c.link_id
                 )
             )
             .where(
-                duval_table.c.period == period
+                speed_record_table.c.period == period
             )
             .group_by(
-                duval_table.c.link_id,
-                duval_table.c.day_of_week,
-                link_info_table.c.road_name,
-                link_info_table.c.geometry
+                speed_record_table.c.link_id,
+                speed_record_table.c.day_of_week,
+                link_table.c.road_name,
+                link_table.c.geometry
             )
-            .order_by(duval_table.c.link_id, duval_table.c.day_of_week)
-            .having(func.avg(duval_table.c.average_speed) < threshold)
+            .order_by(speed_record_table.c.link_id, speed_record_table.c.day_of_week)
+            .having(func.avg(speed_record_table.c.average_speed) < threshold)
 
         )
 
