@@ -3,12 +3,14 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from app.models.aggregate import AggregateRequest, LinkData
 from app.services.aggregate import get_links_geometry_roadname_speed_by_day_period
+from helpers.redis_decorator import cache_decorator
 
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
 
 @router.get("/aggregates/", response_model=List[LinkData])
+@cache_decorator(expire=3600)
 async def get_aggregated_speed(request: AggregateRequest = Depends()):
     """
     Get links with link_id, geometry, road_name, and average_speed for the given day and time period.

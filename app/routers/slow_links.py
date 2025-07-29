@@ -3,12 +3,14 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from app.models.slow_links import SlowLinksRequest, LinkData
 from app.services.aggregate import get_slow_links_period_threshold_min_days
+from helpers.redis_decorator import cache_decorator
 
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
 
 @router.get("/slow_links/", response_model=List[LinkData])
+@cache_decorator(expire=3600)
 async def get_slow_links(request: SlowLinksRequest = Depends()):
     """
     Get links with link_id, geometry, road_name, and overall_average_speed for the given time period

@@ -2,6 +2,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from app.models.spatial_filter import SpatialFilterIn, SpatialFilterResponse, LinkGeometry
 from app.services.aggregate import get_links_with_geometries_in_box_day_period
+from helpers.redis_decorator import cache_decorator
 
 router = APIRouter()
 
@@ -9,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/spatial-filter/", response_model=SpatialFilterResponse)
+@cache_edecorator(expire=3600)
 async def get_links_in_spatial_filter(filter_request: SpatialFilterIn):
     """
     Get links with LINESTRING geometries within a geographic bounding box for a specific day and time period.
