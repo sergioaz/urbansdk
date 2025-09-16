@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from app.models.aggregate import AggregateRequest, LinkData
 from app.services.aggregate import get_links_geometry_roadname_speed_by_day_period
-from helpers.redis_decorator import cache_decorator
+from app.helpers.redis_decorator import cache_decorator
 
 router = APIRouter()
 

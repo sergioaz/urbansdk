@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Depends
 from app.services.aggregate import get_average_speed_by_link_day_period
 from app.models.aggregate_link import AggregateLinkResponse, AggregateLinkRequest
-from helpers.redis_decorator import cache_decorator
+from app.helpers.redis_decorator import cache_decorator
 
 router = APIRouter()
 
